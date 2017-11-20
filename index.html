@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>web socket.</title>
+</head>
+<body>
+	<h1>Hello web socket.</h1>
+	<script type="text/javascript">
+		var ws = new WebSocket("ws://127.0.0.1:3000/v1/ws",["token"])
+		ws.addEventListener("message", function(e){
+			console.log("response:");
+			console.log(e);
+		});
+		ws.onopen = function(){
+			ws.send("ping");			
+		}
+	</script>
+</body>
+</html>
