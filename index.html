@@ -3,17 +3,26 @@
 <head>
 	<meta charset="UTF-8">
 	<title>web socket.</title>
+	<script src="https://cdn.bootcss.com/jquery/3.2.1/jquery.min.js"></script>
+	<!-- <script src="https://cdn.bootcss.com/Base64/1.0.1/base64.min.js"></script> -->
 </head>
 <body>
 	<h1>Hello web socket.</h1>
 	<script type="text/javascript">
-		var ws = new WebSocket("ws://127.0.0.1:3000/v1/ws",["token"])
+		var token = window.btoa("1");//编码 解码用	window.atob()
+		console.log(token);
+		var ws = new WebSocket("ws://127.0.0.1:3000/v1/ws",["token","zjhang"])
 		ws.addEventListener("message", function(e){
 			console.log("response:");
 			console.log(e);
 		});
 		ws.onopen = function(){
-			ws.send("ping");			
+			var msg = {
+				fromUser:"wong",
+				toUser : "zhang",
+				content : "你好,你好"
+			}
+			ws.send(JSON.stringify(msg));			
 		}
 	</script>
 </body>
