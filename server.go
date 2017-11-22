@@ -6,7 +6,10 @@ import (
 	"net/http"
 )
 
-var upgrader = websocket.Upgrader{Subprotocols: []string{"token"}}
+var upgrader = websocket.Upgrader{
+	Subprotocols: []string{"token"},
+	CheckOrigin:  func(r *http.Request) bool { return true },
+}
 
 func main() {
 
@@ -14,6 +17,9 @@ func main() {
 	go hub.run()
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "index.html")
+	})
+	http.HandleFunc("/t", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "t.html")
 	})
 	http.HandleFunc("/v1/ws", func(w http.ResponseWriter, r *http.Request) {
 		serverWs(hub, w, r)

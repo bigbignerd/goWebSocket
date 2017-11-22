@@ -6,23 +6,147 @@
 	<script src="https://cdn.bootcss.com/jquery/3.2.1/jquery.min.js"></script>
 	<!-- <script src="https://cdn.bootcss.com/Base64/1.0.1/base64.min.js"></script> -->
 </head>
+<style type="text/css">
+	.item{
+		width: 100%;
+		padding: 10px;
+		font-size: 14px;
+		line-height: 14px;
+	}
+	.username{
+		font-weight: bold;
+	}
+	.me{
+		color: green
+	}
+	.friend{
+		color:#fed531;
+	}
+	.send{
+		width: 100%;
+		background-color: #ccc;
+		font-size: 12px;
+		height: 40px;width: 100%;display: block;
+		text-decoration: none;
+		color: green;
+		line-height: 40px;text-align: center;
+	}
+</style>
 <body>
 	<h1>Hello web socket.</h1>
+	you:<input type="text" name="username" id="register">
+	to:<input type="text" name="touser" id="toUser">
+	<a href="javascript:void(0);" id="registerBtn">注册</a>
+	<div id="chat" style="width: 600px;display: none;">
+		<div id="room" style="height: 300px;overflow: scroll;border: 1px solid #000">
+			<div class="item">
+				<p class="username">username:</p>
+				<p class="content">contenttttt</p>
+			</div>
+		</div>
+		<div style="width: 90%;height: 40px;float: left;">
+			<textarea style="width: 100%;" id="content"></textarea>
+		</div>
+		<div style="width: 10%;height:40px;float: left;">
+			<a href="javascript:void(0);" id="send"  class="send">发送</a>
+		</div>
+	</div>
+	
 	<script type="text/javascript">
-		var token = window.btoa("1");//编码 解码用	window.atob()
-		console.log(token);
-		var ws = new WebSocket("ws://127.0.0.1:3000/v1/ws",["token","zjhang"])
-		ws.addEventListener("message", function(e){
-			console.log("response:");
-			console.log(e);
-		});
-		ws.onopen = function(){
-			var msg = {
-				fromUser:"wong",
-				toUser : "zhang",
-				content : "你好,你好"
+		$(document).ready(function(){
+			var ws = '';
+			$("#registerBtn").click(function(){
+				var username = $("#register").val();
+				var toUser = $("#toUser").val();
+				ws = new webSocket(username, toUser);
+				ws.init();
+				console.log(ws);
+				if(ws){
+					$("#chat").show();
+				}
+			});
+			$("#send").click(function(){
+				sendMsg();
+			});
+			$("#content").keyup(function(event){
+				var keyCode = event.keyCode
+				if(keyCode == 13){
+					sendMsg();
+				}
+			});
+			function sendMsg(){
+				var content = $("#content").val();
+				if(content == ""){
+					alert("输入内容不能为空");
+					return;
+				}
+				$("#content").val("");
+				ws.sendMsg(content);
 			}
-			ws.send(JSON.stringify(msg));			
+		});
+
+		var chat = {
+			addSendMsg : function(data){
+				var html = '<div class="item">'
+					html += '<p class="username">'+data.fromUser+'</p>';
+					html += '<p class="content me">'+data.content+'</p>'
+					html += '</div>';
+				$("#room").append(html);
+				this.scroll();
+			},
+			addReceiveMsg: function(data){
+				var html = '<div class="item">'
+					html += '<p class="username">'+data.fromUser+'</p>';
+					html += '<p class="content friend">'+data.content+'</p>'
+					html += '</div>';
+				$("#room").append(html);
+				this.scroll();
+			},
+			scroll : function(){
+				var box = document.getElementById("room");
+				box.scrollTop = box.scrollHeight;
+			}
+		}
+		var webSocket = function(username, toUser) {
+			this.ws = '';
+			this.username = username;
+			this.toUser = toUser;
+			this.init = function(){
+				this.connect();
+				this.receiveMsg();
+			};
+			this.connect = function(){
+				if(this.username == "" || typeof this.username == 'undefined'){
+					alert("缺少用户参数");
+					return;
+				}
+				this.ws = new WebSocket("ws://127.0.0.1:3000/v1/ws",["token", this.username]);
+			};
+			this.offline = function(){
+
+			};
+			this.receiveMsg = function(){
+				this.ws.addEventListener("message", function(e){
+					//接收消息
+					var msg = JSON.parse(e.data);
+					//这里需要对消息类型进行判断
+					chat.addReceiveMsg(msg);
+					console.log(e.data);
+				})
+			};
+			this.sendMsg = function(msg){
+				if(msg == ''){
+					alert('参数不正确');
+					return;
+				}
+				var msgObj = {
+					fromUser : this.username,
+					toUser : this.toUser,
+					content : msg
+				}
+				this.ws.send(JSON.stringify(msgObj));
+				chat.addSendMsg(msgObj);
+			}
 		}
 	</script>
 </body>

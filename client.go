@@ -53,7 +53,33 @@ func (c *Client) readPump() {
 		c.hub.message <- message
 	}
 }
-
+func (c *Client) writePump() {
+	ticker := time.NewTicker(pingPeriod)
+	defer func() {
+		ticker.Stop()
+		c.conn.Close()
+	}()
+	for {
+		select {
+		case message, ok := <-c.send:
+			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if !ok {
+				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
+				return
+			}
+			c.conn.WriteJSON(message)
+			n := len(c.send)
+			for i := 0; i < n; i++ {
+				c.conn.WriteJSON(<-c.send)
+			}
+		case <-ticker.C:
+			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err := c.conn.WriteMessage(websocket.PingMessage, []byte{}); err != nil {
+				return
+			}
+		}
+	}
+}
 func serverWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -74,6 +100,7 @@ func serverWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 	//注册new client to hub
 	client.hub.register <- map[string]*Client{token: client}
 	go client.readPump()
+	go client.writePump()
 }
 func userToken(r *http.Request) string {
 	subprotocols := websocket.Subprotocols(r)
