@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
@@ -29,6 +30,7 @@ type Client struct {
 	send chan *Message
 }
 
+//读消息
 func (c *Client) readPump() {
 	defer func() {
 		c.hub.unregister <- c
@@ -36,23 +38,22 @@ func (c *Client) readPump() {
 	}()
 	c.conn.SetReadLimit(maxMessageSize)
 	c.conn.SetReadDeadline(time.Now().Add(pongWait))
-	log.Println("开始执行readPump")
 
 	//ping message and pong message ???
 	c.conn.SetPongHandler(func(string) error { c.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
 	for {
-		log.Println("接收next message")
 		var message *Message //这里会有潜在的问题吗？？？
 		err := c.conn.ReadJSON(&message)
 		if err != nil {
 			log.Printf("error: %v", err)
 			break
 		}
-		log.Println("接收message")
-		log.Printf("error: %v", message)
+		log.Printf("message: %v", message)
 		c.hub.message <- message
 	}
 }
+
+//写消息
 func (c *Client) writePump() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
@@ -80,6 +81,8 @@ func (c *Client) writePump() {
 		}
 	}
 }
+
+//ws server 处理websocket 请求
 func serverWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -102,6 +105,8 @@ func serverWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 	go client.readPump()
 	go client.writePump()
 }
+
+//在websockt 握手连接中获取subprotocols，用做用户标识
 func userToken(r *http.Request) string {
 	subprotocols := websocket.Subprotocols(r)
 	//获取用户token
@@ -110,4 +115,26 @@ func userToken(r *http.Request) string {
 		token = subprotocols[1]
 	}
 	return token
+}
+
+type User struct {
+	UserName string `json:"userName"`
+}
+
+//在线用户
+func onlineUser(hub *Hub, w http.ResponseWriter, r *http.Request) {
+	clients := []User{}
+	for u, _ := range hub.clients {
+		user := User{
+			UserName: u,
+		}
+		clients = append(clients, user)
+	}
+	err := json.NewEncoder(w).Encode(clients)
+
+	if err != nil {
+		log.Printf("json返回出错：%v", err)
+		return
+	}
+	log.Println(clients)
 }
